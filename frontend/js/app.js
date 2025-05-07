@@ -14,8 +14,8 @@ function updateNowPlaying() {
     fetch(NOW_PLAYING_API)
         .then(res => res.json())
         .then(data => {
-            if (data && data.artist && data.track) {
-                trackInfo.textContent = `${data.artist} - ${data.track}`;
+            if (data && data.artist && data.song) {
+                trackInfo.textContent = `${data.artist} - ${data.song}`;
                 if (data.cover) {
                     cover.src = data.cover;
                     cover.style.display = 'block';
@@ -30,7 +30,7 @@ function updateNowPlaying() {
                     ];
 
                     navigator.mediaSession.metadata = new MediaMetadata({
-                        title: data.track,
+                        title: data.song,
                         artist: data.artist,
                         artwork: artwork
                     });
