@@ -17,6 +17,7 @@ function updateNowPlaying() {
             if (data && data.artist && data.song) {
                 trackInfo.textContent = `${data.artist} - ${data.song}`;
                 if (data.cover) {
+                    data.cover = 'https://megapolisfm.md'+data.cover;
                     cover.src = data.cover;
                     cover.style.display = 'block';
                 } else {
