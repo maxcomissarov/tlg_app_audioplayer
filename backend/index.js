@@ -19,6 +19,16 @@ app.get('/api/user', (req, res) => {
   res.json({ id: parsed.user?.id, name: parsed.user?.first_name });
 });
 
+app.get('/api/nowplaying', async (req, res) => {
+  try {
+    const response = await fetch('https://megapolisfm.md/api?action=getNowPlaying');
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Unable to fetch track info' });
+  }
+});
+
 function parseQuery(str) {
   return Object.fromEntries(new URLSearchParams(str));
 }

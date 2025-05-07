@@ -19,9 +19,7 @@
       width: 100px;
       height: 100px;
       border-radius: 50%;
-      background: #10b981;
-      color: white;
-      font-size: 2rem;
+      background: darkorange;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -30,8 +28,17 @@
       transition: background 0.3s;
     }
     .btn:hover {
-      background: #059669;
+      background: orange;
     }
+    .btn svg {
+      width: 40px;
+      height: 40px;
+      fill: white;
+    }
+    .play-icon { display: block; }
+    .stop-icon { display: none; }
+    .playing .play-icon { display: none; }
+    .playing .stop-icon { display: block; }
     .station-name {
       margin-bottom: 20px;
       font-size: 1.25rem;
@@ -42,40 +49,136 @@
       font-size: 0.9rem;
       color: #6b7280;
     }
+    .track-info {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #374151;
+      text-align: center;
+    }
+    .cover {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
-  <div class="station-name" id="stationName">Radio Europa 🎶</div>
-  <div class="btn" id="playButton">▶️</div>
-  <div class="loading" id="loadingIndicator" style="display:none;">Buffering...</div>
-  <audio id="audioPlayer" src="https://megapolisfm.md:8443/886"></audio>
+<img src="" alt="Cover" class="cover" id="coverArt" style="display:none;" />
+<div class="station-name" id="stationName">Megapolis FM</div>
+<div class="btn" id="playButton">
+  <svg class="play-icon" viewBox="0 0 64 64">
+    <polygon points="16,12 54,32 16,52"/>
+  </svg>
+  <svg class="stop-icon" viewBox="0 0 64 64">
+    <rect x="16" y="16" width="32" height="32"/>
+  </svg>
+</div>
+<div class="loading" id="loadingIndicator" style="display:none;">Buffering...</div>
+<div class="track-info" id="trackInfo">jkfheaw - gsgreshserheh</div>
+<audio id="audioPlayer" preload="none"></audio>
 
-  <script>
-    const audio = document.getElementById('audioPlayer');
-    const button = document.getElementById('playButton');
-    const loading = document.getElementById('loadingIndicator');
+<script>
+  const STREAM_URL = 'https://megapolisfm.md:8443/886';
+  const NOW_PLAYING_API = '/api/nowplaying';
+  const audio = document.getElementById('audioPlayer');
+  const button = document.getElementById('playButton');
+  const loading = document.getElementById('loadingIndicator');
+  const cover = document.getElementById('coverArt');
+  const trackInfo = document.getElementById('trackInfo');
 
-    let isPlaying = false;
+  let isPlaying = false;
+  let retryTimeout = null;
+  let nowPlayingInterval = null;
 
-    button.addEventListener('click', () => {
-      if (isPlaying) {
-        audio.pause();
-        button.textContent = '▶️';
-        isPlaying = false;
-      } else {
-        loading.style.display = 'block';
-        audio.play().then(() => {
-          button.textContent = '⏹️';
-          isPlaying = true;
-          loading.style.display = 'none';
-        }).catch(err => {
-          console.error('Playback failed', err);
-          loading.style.display = 'none';
-        });
-      }
-    });
+  function updateNowPlaying() {
+    fetch(NOW_PLAYING_API)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.artist && data.track) {
+                trackInfo.textContent = `${data.artist} - ${data.track}`;
+                if (data.cover) {
+                  cover.src = data.cover;
+                  cover.style.display = 'block';
+                } else {
+                  cover.style.display = 'none';
+                }
 
-    window.Telegram?.WebApp?.expand();
-  </script>
+                if ('mediaSession' in navigator) {
+                  navigator.mediaSession.metadata = new MediaMetadata({
+                    title: data.track,
+                    artist: data.artist,
+                    artwork: [
+                      { src: data.cover, sizes: '512x512', type: 'image/png' }
+                    ]
+                  });
+                  navigator.mediaSession.setActionHandler('pause', () => stopPlayback());
+                  navigator.mediaSession.setActionHandler('stop', () => stopPlayback());
+                  navigator.mediaSession.setActionHandler('play', () => playStream());
+                  navigator.mediaSession.setActionHandler('seekbackward', null);
+                  navigator.mediaSession.setActionHandler('seekforward', null);
+                  navigator.mediaSession.setActionHandler('previoustrack', null);
+                  navigator.mediaSession.setActionHandler('nexttrack', null);
+                }
+              }
+            });
+  }
+
+  function playStream() {
+    if (!isPlaying) return;
+    loading.style.display = 'block';
+    const nocacheUrl = STREAM_URL + '?nocache=' + Date.now();
+    audio.src = nocacheUrl;
+    audio.play()
+            .then(() => {
+              button.classList.add('playing');
+              loading.style.display = 'none';
+              updateNowPlaying();
+              nowPlayingInterval = setInterval(updateNowPlaying, 10000);
+            })
+            .catch((err) => {
+              console.warn('Stream error. Retrying in 3s...', err);
+              loading.textContent = 'Reconnecting...';
+              retryTimeout = setTimeout(playStream, 3000);
+            });
+  }
+
+  function stopPlayback() {
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    button.classList.remove('playing');
+    loading.style.display = 'none';
+    loading.textContent = 'Buffering...';
+    clearTimeout(retryTimeout);
+    clearInterval(nowPlayingInterval);
+    isPlaying = false;
+  }
+
+  button.addEventListener('click', () => {
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      isPlaying = true;
+      playStream();
+    }
+  });
+
+  audio.addEventListener('error', () => {
+    if (isPlaying) {
+      loading.textContent = 'Connection lost. Reconnecting...';
+      retryTimeout = setTimeout(playStream, 3000);
+    }
+  });
+
+  audio.addEventListener('stalled', () => {
+    if (isPlaying) {
+      loading.textContent = 'Stream stalled. Reconnecting...';
+      retryTimeout = setTimeout(playStream, 3000);
+    }
+  });
+
+  window.Telegram?.WebApp?.expand();
+</script>
 </body>
 </html>
