@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniApp Player</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: #10b981;
+      color: white;
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: background 0.3s;
+    }
+    .btn:hover {
+      background: #059669;
+    }
+    .station-name {
+      margin-bottom: 20px;
+      font-size: 1.25rem;
+      color: #111827;
+    }
+    .loading {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="station-name" id="stationName">Radio Europa 🎶</div>
+  <div class="btn" id="playButton">▶️</div>
+  <div class="loading" id="loadingIndicator" style="display:none;">Buffering...</div>
+  <audio id="audioPlayer" src="https://megapolisfm.md:8443/886"></audio>
+
+  <script>
+    const audio = document.getElementById('audioPlayer');
+    const button = document.getElementById('playButton');
+    const loading = document.getElementById('loadingIndicator');
+
+    let isPlaying = false;
+
+    button.addEventListener('click', () => {
+      if (isPlaying) {
+        audio.pause();
+        button.textContent = '▶️';
+        isPlaying = false;
+      } else {
+        loading.style.display = 'block';
+        audio.play().then(() => {
+          button.textContent = '⏹️';
+          isPlaying = true;
+          loading.style.display = 'none';
+        }).catch(err => {
+          console.error('Playback failed', err);
+          loading.style.display = 'none';
+        });
+      }
+    });
+
+    window.Telegram?.WebApp?.expand();
+  </script>
+</body>
+</html>
